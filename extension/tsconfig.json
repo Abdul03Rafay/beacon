@@ -1,14 +1,16 @@
 {
   "compilerOptions": {
     "target": "ES6",
-    "module": "none",
+    "module": "ES2015",
+    "moduleResolution": "node",
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
     "noEmit": false,
     "sourceMap": false,
     "types": ["chrome"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "importsNotUsedAsValues": "remove"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
