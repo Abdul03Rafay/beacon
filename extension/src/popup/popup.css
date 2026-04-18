@@ -34,12 +34,20 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 #toggle-label {
   font-size: 13px;
   color: #555555;
   font-weight: bold;
+}
+
+#llm-label {
+  font-size: 13px;
+  color: #555555;
+  font-weight: bold;
+  margin-left: 8px;
 }
 
 .knob-switch {
@@ -61,16 +69,18 @@ body {
   border: 2px solid #999;
   border-radius: 34px;
   transition: background-color 0.3s ease, border-color 0.3s ease;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .knob-circle {
   position: absolute;
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   background-color: white;
   border-radius: 50%;
-  top: 2px;
-  left: 4px;
+  top: 1px;
+  left: 1px;
   transition: left 0.3s ease;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
@@ -81,7 +91,7 @@ body {
 }
 
 .knob-switch input:checked ~ .knob-background .knob-circle {
-  left: 30px;
+  left: 29px;
 }
 
 /* ---- Scan Button ---- */
