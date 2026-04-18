@@ -42,11 +42,46 @@ body {
   font-weight: bold;
 }
 
-#scan-toggle {
-  width: 40px;
-  height: 24px;
+.knob-switch {
+  display: inline-block;
   cursor: pointer;
-  accent-color: #1a5f7a;
+  user-select: none;
+}
+
+.knob-switch input {
+  display: none !important;
+}
+
+.knob-background {
+  display: inline-block;
+  position: relative;
+  width: 60px;
+  height: 34px;
+  background-color: #d3d3d3;
+  border: 2px solid #999;
+  border-radius: 34px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.knob-circle {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  background-color: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 4px;
+  transition: left 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.knob-switch input:checked ~ .knob-background {
+  background-color: #1a5f7a;
+  border-color: #0f3d52;
+}
+
+.knob-switch input:checked ~ .knob-background .knob-circle {
+  left: 30px;
 }
 
 /* ---- Scan Button ---- */

@@ -18,6 +18,51 @@ interface AnalysisResult {
   websiteInfo: WebsiteInfo;
 }
 
+//(1.5) Toggle Button Setup
+const scanToggle = document.getElementById('scan-toggle') as HTMLInputElement;
+const knobSwitch = document.querySelector('.knob-switch') as HTMLElement;
+
+// Verify element exists
+if (!scanToggle) {
+  console.error('[Beacon] Toggle checkbox not found');
+} else {
+  console.log('[Beacon] Toggle found, initializing...');
+}
+
+// Make knob clickable
+if (knobSwitch) {
+  knobSwitch.addEventListener('click', () => {
+    scanToggle.checked = !scanToggle.checked;
+    scanToggle.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+// Load the toggle state from Chrome storage on page load
+chrome.storage.local.get(['scanningEnabled'], (result) => {
+  const isEnabled = result.scanningEnabled !== false;
+  scanToggle.checked = isEnabled;
+  updateScanButtonState(isEnabled);
+  console.log('[Beacon] Toggle initialized:', isEnabled);
+});
+
+// Listen for toggle changes
+scanToggle.addEventListener('change', (event) => {
+  const isEnabled = (event.target as HTMLInputElement).checked;
+  chrome.storage.local.set({ scanningEnabled: isEnabled });
+  updateScanButtonState(isEnabled);
+  console.log('[Beacon] Toggle changed:', isEnabled);
+});
+
+// Update the scan button's disabled state based on toggle
+function updateScanButtonState(isEnabled: boolean): void {
+  scanButton.disabled = !isEnabled;
+  if (!isEnabled) {
+    scanButton.textContent = 'Scanning disabled';
+  } else {
+    scanButton.textContent = 'Check this page';
+  }
+}
+
 //(2) grab references to HTML elements
 
 const scanButton = document.getElementById("scan-button") as HTMLButtonElement;
