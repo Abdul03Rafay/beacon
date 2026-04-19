@@ -1,5 +1,5 @@
-import { Request, Response } from "express";
-import { AnalyzeRequest } from "../types/api.js";
+import type { Request, Response } from "express";
+import type { AnalyzeRequest } from "../types/api.js";
 import { AnalyzeService } from "../services/analyzeService.js";
 
 const analyzeService = new AnalyzeService();

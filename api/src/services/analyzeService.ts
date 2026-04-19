@@ -1,5 +1,5 @@
-import { AnalyzeRequest, AnalyzeResponse } from "../types/api.js";
-import { Provider } from "../providers/types.js";
+import type { AnalyzeRequest, AnalyzeResponse } from "../types/api.js";
+import type { Provider } from "../providers/types.js";
 import { MockProvider } from "../providers/mockProvider.js";
 
 type ModelChoice = "external_llm" | "custom_model";

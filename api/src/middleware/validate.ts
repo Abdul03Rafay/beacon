@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from "express";
-import { Context } from "../types/api.js";
+import type { Request, Response, NextFunction } from "express";
+import type { Context } from "../types/api.js";
 
 const VALID_CONTEXTS: Context[] = ["email_body", "sms", "form", "page_body"];
 const MAX_TEXT_LENGTH = 8000;

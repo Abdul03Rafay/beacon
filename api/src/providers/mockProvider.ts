@@ -1,5 +1,5 @@
-import { AnalyzeRequest, AnalyzeResponse } from "../types/api.js";
-import { Provider } from "./types.js";
+import type { AnalyzeRequest, AnalyzeResponse } from "../types/api.js";
+import type { Provider } from "./types.js";
 
 export class MockProvider implements Provider {
   name = "mock";
@@ -8,7 +8,7 @@ export class MockProvider implements Provider {
     // Simulate processing delay
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    // Mock logic based on heuristic_score
+    // Mock logic 
     if (request.heuristic_score >= 0.7) {
       return {
         risk_score: 0.91,

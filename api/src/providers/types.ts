@@ -1,4 +1,4 @@
-import { AnalyzeRequest, AnalyzeResponse } from "../types/api.js";
+import type { AnalyzeRequest, AnalyzeResponse } from "../types/api.js";
 
 export interface Provider {
   name: string;
