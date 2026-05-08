@@ -5,6 +5,8 @@
     "moduleResolution": "node",
     "outDir": "dist",
     "rootDir": "src",
+    "types": ["chrome"],
+    "lib": ["DOM", "ES2020"],
     "strict": true,
     "noEmit": false,
     "sourceMap": false,
