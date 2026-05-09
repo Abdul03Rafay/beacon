@@ -166,4 +166,4 @@ Same-site navigation and generic link text (no domain claim) are excluded to avo
 - **Finding 3.8** — After outlier removal, phishing pages cluster in the low `largestlinelength` + low `lineofcode` zone.
 - **Finding 3.9** — URLs above the 99th percentile on key features are 100% phishing; supports a tiered rule → later ML/LLM-based approach.
 
-Full EDA: `heuristics/beacon_heuristics_EDA.ipynb`
+Full EDA: `extension/src/heuristics/beacon_heuristics_EDA.ipynb`
