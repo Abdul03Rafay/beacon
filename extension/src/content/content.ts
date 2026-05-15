@@ -16,8 +16,8 @@
 //   file — no imports remain at runtime.
 
 import type { HeuristicResult, ExtractedPageData, Link } from "../types/heuristics";
-import { analyzeContent } from "../heuristics/contentHeuristics";
-import { analyzeUrl }     from "../heuristics/urlHeuristics";
+import { analyzeContent, toVerdict } from "../heuristics/contentHeuristics";
+import { analyzeUrl }                from "../heuristics/urlHeuristics";
 
 // –– Data extraction ––
 // Reads the current page's DOM and returns a structured snapshot.
@@ -76,23 +76,9 @@ function combineResults(
     // Merge all individual findings into one list.
     const findings = [...urlResult.findings, ...contentResult.findings];
 
-    // Derive a single verdict from the combined score.
-    // Thresholds must match the ones in popup.ts for colour coding.
-    let verdict: HeuristicResult["verdict"];
-    let explanation: string;
-
-    if (score <= 3) {
-        verdict = "safe";
-        explanation = score === 0
-            ? "No indicators detected."
-            : "Minor indicators detected. Likely safe — stay alert.";
-    } else if (score <= 6) {
-        verdict = "suspicious";
-        explanation = "This page has indicators commonly associated with scams. Exercise caution.";
-    } else {
-        verdict = "scam";
-        explanation = "Strong scam indicators detected. Do not enter personal information.";
-    }
+    // Derive verdict and explanation from the shared toVerdict helper.
+    // Single source of truth — thresholds live in contentHeuristics.ts.
+    const { verdict, explanation } = toVerdict(score);
 
     return { score, verdict, explanation, findings, source: "combined" };
 }

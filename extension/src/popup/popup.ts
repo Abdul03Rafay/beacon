@@ -10,7 +10,7 @@
 //   3. Display the result (score, verdict, explanation, findings list)
 //   4. Enable the "Check this page" button only if score >= 4
 
-import type { HeuristicResult } from "../types/heuristics";
+import type { HeuristicResult, ExtractedPageData, Verdict } from "../types/heuristics";
 
 // –– Element references ––
 // document.getElementById returns HTMLElement | null.
@@ -29,15 +29,15 @@ const findingsList    = document.getElementById("findings-list")    as HTMLUList
 const errorDiv        = document.getElementById("error")            as HTMLDivElement;
 const errorMessage    = document.getElementById("error-message")    as HTMLParagraphElement;
 
-// –– Helper: score → CSS class suffix ––
-// Returns "safe", "suspicious", or "scam" based on the score.
-// These strings are appended to "score-" and "verdict-" to pick the right
-// colour classes defined in popup.css.
+// –– Helper: verdict → CSS class suffix ––
+// Maps the shared Verdict type to the CSS class suffix used for colour coding.
+// Deriving this from the verdict (not re-computing from score) keeps the two
+// in sync automatically — one source of truth in contentHeuristics.ts:toVerdict.
 
-function getVerdictLevel(score: number): string {
-    if (score <= 3) return "safe";
-    if (score <= 6) return "suspicious";
-    return "scam";
+function getVerdictLevel(verdict: Verdict): string {
+    if (verdict === "Safe") return "safe";
+    if (verdict === "Uncertain") return "suspicious";
+    return "scam"; // "Likely Scam"
 }
 
 // –– Helper: extract readable domain from a full URL ––
@@ -68,17 +68,16 @@ function showHeuristicResult(result: HeuristicResult, url: string): void {
 
     // Score circle: update number and background colour.
     scoreNumber.textContent = result.score.toString();
-    const level = getVerdictLevel(result.score);
+    const level = getVerdictLevel(result.verdict);
     scoreCircle.classList.remove("score-safe", "score-suspicious", "score-scam");
     scoreCircle.classList.add("score-" + level);
 
-    // Verdict text: capitalise first letter ("safe" → "Safe") and apply colour.
-    verdictText.textContent =
-        result.verdict.charAt(0).toUpperCase() + result.verdict.slice(1);
+    // Verdict text: already title-cased from the shared Verdict type.
+    verdictText.textContent = result.verdict;
     verdictText.classList.remove("verdict-safe", "verdict-suspicious", "verdict-scam");
     verdictText.classList.add("verdict-" + level);
 
-    // Show the domain of the page being analysed.
+    // Show the domain of the page at the time of analysis.
     verdictUrl.textContent = getDomain(url);
 
     // Plain-language explanation.
@@ -98,7 +97,7 @@ function showHeuristicResult(result: HeuristicResult, url: string): void {
     }
 
     // Enable "Check this page" (Tier 2) only when heuristics flagged the page.
-    // score < 4 means verdict is "safe" — no need for deeper analysis.
+    // score < 4 means verdict is "Safe" — no need for deeper analysis.
     scanButton.disabled = result.score < 4;
 }
 
@@ -119,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // The background responds with { result, pageData } or { error: "..." }.
         chrome.runtime.sendMessage(
             { action: "getResult", tabId: tab.id },
-            (response: { result?: HeuristicResult; error?: string }) => {
+            (response: { result?: HeuristicResult; pageData?: ExtractedPageData; error?: string }) => {
                 // chrome.runtime.lastError is set if the background didn't respond
                 // (e.g. it was just installed and hasn't run yet).
                 if (chrome.runtime.lastError) {
@@ -132,7 +131,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
-                showHeuristicResult(response.result, tab.url ?? "");
+                // Use the URL captured at analysis time rather than the current tab URL.
+                // On SPAs the tab URL can change after the analysis ran, so pageData.url
+                // is more accurate for the domain shown in the popup.
+                const analysedUrl = response.pageData?.url ?? tab.url ?? "";
+                showHeuristicResult(response.result, analysedUrl);
             }
         );
     });

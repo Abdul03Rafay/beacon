@@ -17,49 +17,18 @@
 //   popup.ts    ->  { action: "getResult", tabId }               →  background.ts
 //   background.ts  ->  { result, pageData }  OR  { error: "not found" }  →  popup.ts
 
-// –– Local type declarations ––
-// Background service workers built as IIFE scripts can't use ES module imports
-// at runtime, so we redeclare the minimal shapes we need here.
-// Keep in sync with src/types/heuristics.ts.
+import type { HeuristicResult, ExtractedPageData } from "../types/heuristics";
 
-type Verdict = "Safe" | "Uncertain" | "Likely Scam";
-type HeuristicSource = "content" | "url" | "combined";
-
-interface HeuristicResult {
-    score: number;
-    verdict: Verdict;
-    explanation: string;
-    findings: string[];
-    source: HeuristicSource;
-}
-
-interface Link {
-    text: string;
-    href: string;
-}
-
-interface ExtractedPageData {
-    url: string;
-    title: string;
-    metaDescription: string;
-    textContent: string;
-    links: Link[];
-}
-
+// StoredEntry is the only shape not exported from the shared types file.
 interface StoredEntry {
     result: HeuristicResult;
     pageData: ExtractedPageData;
 }
 
 // –– Storage ––
-// A Map that holds one analysis result per open tab.
-// Key   = Chrome tab ID (a number Chrome assigns to each tab).
-// Value = the HeuristicResult + page data produced by the content script.
-//
-// Note: this Map lives in memory only. If Chrome kills the service worker to
-// save resources, the Map is cleared. For production, use chrome.storage.session.
-
-const tabResults = new Map<number, StoredEntry>();
+// chrome.storage.session persists for the lifetime of the browser session and
+// survives Chrome suspending the service worker to save resources.
+// Key pattern: "tab_<tabId>" → StoredEntry JSON.
 
 // –– Message listener ––
 // chrome.runtime.onMessage fires whenever content.ts or popup.ts calls
@@ -81,28 +50,38 @@ chrome.runtime.onMessage.addListener(
             // sender.tab.id tells us which tab sent the message.
             const tabId = sender.tab?.id;
             if (tabId !== undefined && message.result && message.pageData) {
-                tabResults.set(tabId, {
+                const entry: StoredEntry = {
                     result: message.result,
                     pageData: message.pageData,
-                });
-                console.log(`[Beacon] stored result for tab ${tabId}`, message.result);
+                };
+                (async () => {
+                    await chrome.storage.session.set({ [`tab_${tabId}`]: entry });
+                    console.log(`[Beacon] stored result for tab ${tabId}`, message.result);
+                    sendResponse({ success: true });
+                })();
+            } else {
+                sendResponse({ success: false });
             }
-            sendResponse({ success: true });
-            return true;
+            return true; // Keep message channel open for async sendResponse
         }
 
         if (message.action === "getResult") {
             // Popup opened and wants the stored result for a given tab.
-            const stored = message.tabId !== undefined
-                ? tabResults.get(message.tabId)
-                : undefined;
-
-            if (stored) {
-                sendResponse(stored); // { result, pageData }
+            if (message.tabId !== undefined) {
+                const key = `tab_${message.tabId}`;
+                (async () => {
+                    const data = await chrome.storage.session.get(key);
+                    const stored = data[key] as StoredEntry | undefined;
+                    if (stored) {
+                        sendResponse(stored); // { result, pageData }
+                    } else {
+                        sendResponse({ error: "not found" });
+                    }
+                })();
             } else {
                 sendResponse({ error: "not found" });
             }
-            return true;
+            return true; // Keep message channel open for async sendResponse
         }
 
         return false;
@@ -110,8 +89,8 @@ chrome.runtime.onMessage.addListener(
 );
 
 // –– Tab cleanup ––
-// When a tab closes, remove its stored entry so memory doesn't grow forever.
+// When a tab closes, remove its stored entry so session storage doesn't grow forever.
 
 chrome.tabs.onRemoved.addListener((tabId: number) => {
-    tabResults.delete(tabId);
+    chrome.storage.session.remove(`tab_${tabId}`);
 });

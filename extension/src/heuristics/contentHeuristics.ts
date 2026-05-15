@@ -298,7 +298,7 @@ function extractClaimedDomain(linkText: string): string | null {
 
 // ─── Score → Verdict ─────────────────────────────────────────────────────────
 
-function toVerdict(score: number): {
+export function toVerdict(score: number): {
     verdict: HeuristicResult["verdict"];
     explanation: string;
 } {
