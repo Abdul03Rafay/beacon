@@ -18,6 +18,7 @@
 import type { HeuristicResult, ExtractedPageData, Link } from "../types/heuristics";
 import { analyzeContent, toVerdict } from "../heuristics/contentHeuristics";
 import { analyzeUrl }                from "../heuristics/urlHeuristics";
+import { analyzeLinks }              from "../heuristics/linkHeuristics";
 
 // –– Data extraction ––
 // Reads the current page's DOM and returns a structured snapshot.
@@ -68,16 +69,22 @@ function extractPageData(): ExtractedPageData {
 
 function combineResults(
     urlResult: HeuristicResult,
-    contentResult: HeuristicResult
+    contentResult: HeuristicResult,
+    linkResult: HeuristicResult
 ): HeuristicResult {
-    // Add both scores, capped at 10.
-    const score = Math.min(10, urlResult.score + contentResult.score);
+    // Each module returns a safety score (10 = safe, 0 = scam).
+    // Convert back to threat scores, sum them, then re-invert so the final
+    // score is also a safety score: the more signals that fired, the lower it goes.
+    const combinedThreat = Math.min(
+        10,
+        (10 - urlResult.score) + (10 - contentResult.score) + (10 - linkResult.score)
+    );
+    const score = 10 - combinedThreat;
 
-    // Merge all individual findings into one list.
-    const findings = [...urlResult.findings, ...contentResult.findings];
+    // Merge findings from all three modules in order.
+    const findings = [...urlResult.findings, ...contentResult.findings, ...linkResult.findings];
 
-    // Derive verdict and explanation from the shared toVerdict helper.
-    // Single source of truth — thresholds live in contentHeuristics.ts.
+    // Single source of truth for thresholds — toVerdict lives in contentHeuristics.ts.
     const { verdict, explanation } = toVerdict(score);
 
     return { score, verdict, explanation, findings, source: "combined" };
@@ -104,10 +111,11 @@ function logExtractedData(label: string, data: ExtractedPageData): void {
 const initialData = extractPageData();
 logExtractedData("page load", initialData);
 
-// Run both heuristics and combine into one result.
+// Run all three heuristics and combine into one result.
 const urlResult     = analyzeUrl(initialData.url);
 const contentResult = analyzeContent(initialData);
-const combined      = combineResults(urlResult, contentResult);
+const linkResult    = analyzeLinks(initialData.links, initialData.url);
+const combined      = combineResults(urlResult, contentResult, linkResult);
 
 console.log("[Beacon] Combined heuristic result:", combined);
 
