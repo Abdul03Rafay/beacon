@@ -67,7 +67,24 @@ const CONTENT_RULES: Rule[] = [
 // Content-based signal. Phrases in title/meta weighted higher because
 // attackers deliberately craft those fields to deceive users.
 
+// Phrases that appear specifically in button / CTA text on scam pages.
+// Checked separately from body text because intentional CTAs carry higher signal
+// than incidental phrase matches in aggregated body copy.
+const SUSPICIOUS_CTA_PHRASES: readonly string[] = [
+    "claim now",
+    "get my prize",
+    "collect your reward",
+    "collect my prize",
+    "claim reward",
+    "access my funds",
+    "unlock my account",
+    "reactivate my account",
+    "update payment now",
+    "verify account now",
+];
+
 const SCAM_PHRASES: readonly string[] = [
+    // Prize / lottery scam language
     "you have won",
     "you've won",
     "congratulations, you won",
@@ -80,6 +97,16 @@ const SCAM_PHRASES: readonly string[] = [
     "send a wire transfer",
     "you are the lucky winner",
     "congratulations you are our winner",
+    // Financial credential phishing language
+    "your account has been suspended",
+    "your account will be terminated",
+    "your account will be closed",
+    "verify your billing information",
+    "update your payment information to continue",
+    "your funds are on hold",
+    "your card has been blocked",
+    "unusual activity has been detected on your account",
+    "your access has been restricted",
 ];
 
 function findScamPhrases(text: string): string[] {
@@ -156,6 +183,80 @@ export function analyzeContent(pageData: ExtractedPageData): HeuristicResult {
     for (const phrase of bodyMatches) {
         score += 2;
         findings.push(`Scam phrase in page text: "${phrase}"`);
+    }
+
+    // 3 — Suspicious button / CTA text
+    // Intentional calls-to-action on scam pages ("Claim Now", "Access My Funds")
+    // carry higher signal than the same phrase buried in body copy, so they get
+    // the same weight as title/meta matches (3 per hit).
+    const ctaLower = pageData.buttonText.toLowerCase();
+    for (const phrase of SUSPICIOUS_CTA_PHRASES) {
+        if (ctaLower.includes(phrase)) {
+            score += 3;
+            findings.push(`Suspicious CTA button text: "${phrase}"`);
+        }
+    }
+
+    // 4 — Cross-domain credential form
+    // A <form> that POSTs a password field to a different domain than the page
+    // is the canonical mechanism for credential harvesting. Near-zero legitimate
+    // uses — SSO/OAuth flows use redirects, not cross-domain POSTs.
+    // Weight 6: survives the URL veto (threshold is < 6), so it flags as
+    // uncertain even on an otherwise clean URL.
+    try {
+        const currentBase = new URL(pageData.url).hostname.split(".").slice(-2).join(".");
+        const phishingForms = pageData.forms.filter((form) => {
+            if (!form.hasPasswordField || !form.action) return false;
+            try {
+                const actionBase = new URL(form.action).hostname.split(".").slice(-2).join(".");
+                return actionBase !== currentBase;
+            } catch { return false; }
+        });
+        if (phishingForms.length > 0) {
+            score += 6;
+            findings.push(
+                `${phishingForms.length} credential form(s) POST to a different domain — ` +
+                `classic phishing technique`
+            );
+        }
+    } catch { /* unparseable URL — skip */ }
+
+    // 5 — Fake security badge images
+    // Scam pages place Norton/McAfee/etc. badge images to appear trustworthy.
+    // Real security-badge programs require domain verification; their presence
+    // on a suspicious page is almost always a static fake. Weight 2: only
+    // meaningful when stacked with URL-level signals.
+    if (pageData.badgeAltTexts.length > 0) {
+        score += 2;
+        findings.push(
+            `Security-impersonation badge images detected ` +
+            `(${pageData.badgeAltTexts.slice(0, 3).join(", ")}) — ` +
+            `commonly faked on phishing pages`
+        );
+    }
+
+    // 6 — Countdown timer with urgency language
+    // Scam/prize pages use countdown timers combined with urgency words
+    // ("expires", "remaining") to pressure users into acting without thinking.
+    // Weight 2: stacks with URL signals; discarded by URL veto on clean URLs.
+    const combinedText = `${pageData.title} ${pageData.textContent}`.toLowerCase();
+    const hasTimer   = /\b\d{1,2}:\d{2}(:\d{2})?\b/.test(combinedText);
+    const hasUrgency = /\b(expires?|ending soon|remaining|time is running|countdown|hurry)\b/.test(combinedText);
+    if (hasTimer && hasUrgency) {
+        score += 2;
+        findings.push(
+            "Countdown timer with urgency language — high-pressure tactic " +
+            "common on prize and subscription scam pages"
+        );
+    }
+
+    // 7 — Scam phrases in immediate overlay / modal
+    // An overlay that appears on page load containing scam phrases is highly
+    // deliberate manipulation. Same weight as title/meta (3 per phrase).
+    const overlayMatches = findScamPhrases(pageData.overlayText);
+    for (const phrase of overlayMatches) {
+        score += 3;
+        findings.push(`Scam phrase in page overlay/modal: "${phrase}"`);
     }
 
     // Invert to a safety score: 10 = no threats detected, 0 = maximum threat.

@@ -285,7 +285,7 @@ export function analyzeLink(link: Link): HeuristicResult {
 export function analyzeLinks(links: Link[], currentUrl: string): HeuristicResult {
     if (links.length === 0) {
         return {
-            score: 0,
+            score: 10,
             verdict: "safe",
             explanation: "No links found on page.",
             findings: [],
